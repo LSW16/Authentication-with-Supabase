@@ -1,7 +1,6 @@
-
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -12,20 +11,31 @@ import {
   Text,
   TextInput,
   View,
-} from 'react-native';
-import { z } from 'zod';
-import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+} from "react-native";
+import { z } from "zod";
+import { useAuth } from "../../context/AuthContext";
+import { supabase } from "../../lib/supabase";
 
 const signInSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  email: z.string().trim().email("Enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
 const signUpSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  email: z.string().trim().email("Enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must include at least one uppercase letter")
+    .regex(/[a-z]/, "Password must include at least one lowercase letter")
+    .regex(/[0-9]/, "Password must include at least one number"),
+});
+
+const signUpSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
@@ -42,24 +52,25 @@ export default function Index() {
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [publicItems, setPublicItems] = useState<PublicItem[]>([]);
   const [publicLoading, setPublicLoading] = useState(true);
+  const [messageType, setMessageType] = useState<"error" | "success" | "">("");
 
   const loginForm = useForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
     },
   });
 
   const registerForm = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      name: '',
-      email: '',
-      password: '',
+      name: "",
+      email: "",
+      password: "",
     },
   });
 
@@ -67,15 +78,15 @@ export default function Index() {
     async function loadPublicData() {
       try {
         const { data, error } = await supabase
-          .from('public_info')
-          .select('id, title, description')
-          .order('id');
+          .from("public_info")
+          .select("id, title, description")
+          .order("id");
 
         if (error) throw error;
 
         setPublicItems(data || []);
       } catch {
-        setMessage('Unable to load public information.');
+        setMessage("Unable to load public information.");
       } finally {
         setPublicLoading(false);
       }
@@ -86,23 +97,25 @@ export default function Index() {
 
   async function handleSignIn(values: SignInValues) {
     setBusy(true);
-    setMessage('');
+    setMessage("");
+    setMessageType("");
 
     try {
-      const { error } = await signIn(
-        values.email,
-        values.password
-      );
+      const { error } = await signIn(values.email.trim(), values.password);
 
       if (error) {
+        setMessageType("error");
         setMessage(
-          error.message.includes('Invalid login credentials')
-            ? 'Incorrect email or password.'
+          error.message.toLowerCase().includes("invalid login credentials")
+            ? "Invalid credentials. Please check your email and password."
             : error.message
         );
       }
     } catch {
-      setMessage('Network error. Please check your internet connection.');
+      setMessageType("error");
+      setMessage(
+        "Network error. Please check your internet connection and try again."
+      );
     } finally {
       setBusy(false);
     }
@@ -110,7 +123,48 @@ export default function Index() {
 
   async function handleSignUp(values: SignUpValues) {
     setBusy(true);
-    setMessage('');
+    setMessage("");
+    setMessageType("");
+
+    try {
+      const { error, session } = await signUp(
+        values.name.trim(),
+        values.email.trim(),
+        values.password
+      );
+
+      if (error) {
+        setMessageType("error");
+        const lower = error.message.toLowerCase();
+        if (lower.includes("password")) {
+          setMessage(`Weak password: ${error.message}`);
+        } else {
+          setMessage(error.message);
+        }
+      } else if (session) {
+        setMessageType("success");
+        setMessage("Account created successfully!");
+      } else {
+        setMessageType("success");
+        setMessage(
+          "Account created! Please check your email to confirm your account, then sign in."
+        );
+        setIsSignUp(false);
+        loginForm.setValue("email", values.email.trim());
+      }
+    } catch {
+      setMessageType("error");
+      setMessage(
+        "Network error. Please check your internet connection and try again."
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSignUp(values: SignUpValues) {
+    setBusy(true);
+    setMessage("");
 
     try {
       const { error, session } = await signUp(
@@ -122,17 +176,17 @@ export default function Index() {
       if (error) {
         setMessage(error.message);
       } else if (session) {
-        setMessage('Account created successfully!');
+        setMessage("Account created successfully!");
       } else {
         setMessage(
-          'Account created! Please check your email to confirm your account, then sign in.'
+          "Account created! Please check your email to confirm your account, then sign in."
         );
 
         setIsSignUp(false);
-        loginForm.setValue('email', values.email);
+        loginForm.setValue("email", values.email);
       }
     } catch {
-      setMessage('Network error. Please check your internet connection.');
+      setMessage("Network error. Please check your internet connection.");
     } finally {
       setBusy(false);
     }
@@ -141,18 +195,18 @@ export default function Index() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.card}>
           <Text style={styles.title}>
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isSignUp ? "Create Account" : "Welcome Back"}
           </Text>
 
           <Text style={styles.subtitle}>
             {isSignUp
-              ? 'Create your account to get started.'
-              : 'Sign in to access your account.'}
+              ? "Create your account to get started."
+              : "Sign in to access your account."}
           </Text>
 
           {isSignUp ? (
@@ -279,8 +333,17 @@ export default function Index() {
             </>
           )}
 
-          {message !== '' && (
-            <Text style={styles.message}>{message}</Text>
+          {message !== "" && (
+            <Text
+              style={[
+                styles.message,
+                messageType === "error"
+                  ? styles.errorMessage
+                  : styles.successMessage,
+              ]}
+            >
+              {message}
+            </Text>
           )}
 
           <Pressable
@@ -298,7 +361,7 @@ export default function Index() {
               <ActivityIndicator color="#FFFFFF" />
             ) : (
               <Text style={styles.buttonText}>
-                {isSignUp ? 'Sign Up' : 'Sign In'}
+                {isSignUp ? "Sign Up" : "Sign In"}
               </Text>
             )}
           </Pressable>
@@ -306,14 +369,14 @@ export default function Index() {
           <Pressable
             onPress={() => {
               setIsSignUp(!isSignUp);
-              setMessage('');
+              setMessage("");
               loginForm.reset();
               registerForm.reset();
             }}
           >
             <Text style={styles.switchText}>
               {isSignUp
-                ? 'Already have an account? Sign In'
+                ? "Already have an account? Sign In"
                 : "Don't have an account? Sign Up"}
             </Text>
           </Pressable>
@@ -336,9 +399,7 @@ export default function Index() {
             publicItems.map((item) => (
               <View key={item.id} style={styles.infoCard}>
                 <Text style={styles.infoTitle}>{item.title}</Text>
-                <Text style={styles.infoDescription}>
-                  {item.description}
-                </Text>
+                <Text style={styles.infoDescription}>{item.description}</Text>
               </View>
             ))
           )}
@@ -351,102 +412,108 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: "#F1F5F9",
   },
   scroll: {
     flexGrow: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 24,
     borderRadius: 16,
     elevation: 3,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1E293B',
+    fontWeight: "bold",
+    color: "#1E293B",
     marginBottom: 8,
   },
   subtitle: {
-    color: '#64748B',
+    color: "#64748B",
     marginBottom: 24,
   },
   label: {
-    fontWeight: '600',
-    color: '#334155',
+    fontWeight: "600",
+    color: "#334155",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: "#CBD5E1",
     borderRadius: 8,
     padding: 14,
     marginBottom: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   error: {
-    color: '#DC2626',
+    color: "#DC2626",
     marginBottom: 10,
   },
   message: {
-    color: '#2563EB',
+    color: "#2563EB",
     marginBottom: 12,
     lineHeight: 21,
   },
   button: {
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 12,
   },
   disabled: {
     opacity: 0.6,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: "#FFFFFF",
+    fontWeight: "bold",
     fontSize: 16,
   },
   switchText: {
-    color: '#2563EB',
-    textAlign: 'center',
+    color: "#2563EB",
+    textAlign: "center",
     marginTop: 20,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   publicSection: {
     marginTop: 28,
   },
   sectionTitle: {
     fontSize: 21,
-    fontWeight: 'bold',
-    color: '#1E293B',
+    fontWeight: "bold",
+    color: "#1E293B",
     marginBottom: 6,
   },
   publicSubtitle: {
-    color: '#64748B',
+    color: "#64748B",
     marginBottom: 12,
   },
   publicText: {
-    color: '#64748B',
+    color: "#64748B",
   },
   infoCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 10,
     marginBottom: 10,
   },
   infoTitle: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 16,
-    color: '#1E293B',
+    color: "#1E293B",
     marginBottom: 5,
   },
   infoDescription: {
-    color: '#64748B',
+    color: "#64748B",
     lineHeight: 20,
+  },
+  errorMessage: {
+    color: '#DC2626',
+  },
+  successMessage: {
+    color: '#16A34A',
   },
 });
