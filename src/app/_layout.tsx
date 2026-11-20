@@ -1,7 +1,7 @@
 
 import { Stack, usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { AuthProvider, useAuth } from '../../context/AuthContext';
 
 function RootNavigator() {
@@ -26,9 +26,14 @@ function RootNavigator() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Restoring session...</Text>
       </View>
     );
+  }
+
+  if (!session && !isLoginScreen) {
+    return null;
   }
 
   return (
@@ -52,5 +57,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#475569',
+    fontSize: 15,
+    fontWeight: '500',
   },
 });

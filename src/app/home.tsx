@@ -26,7 +26,20 @@ export default function Home() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
+      if (!session) {
+        if (isMounted) {
+          setItems([]);
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
+      setMessage('');
+
       try {
         const { data, error } = await supabase
           .from('protected_items')
@@ -35,20 +48,30 @@ export default function Home() {
 
         if (error) throw error;
 
-        setItems(data || []);
+        if (isMounted) {
+          setItems(data || []);
+        }
       } catch (error) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : 'Unable to load protected information.'
-        );
+        if (isMounted) {
+          setMessage(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load protected information.'
+          );
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
     loadData();
-  }, []);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [session?.access_token]);
 
   async function handleSignOut() {
     setBusy(true);
