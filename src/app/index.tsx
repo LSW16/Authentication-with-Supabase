@@ -21,21 +21,21 @@ const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-// const signUpSchema = z.object({
-//   name: z.string().trim().min(2, "Name must be at least 2 characters"),
-//   email: z.string().trim().email("Enter a valid email address"),
-//   password: z
-//     .string()
-//     .min(8, "Password must be at least 8 characters")
-//     .regex(/[A-Z]/, "Password must include at least one uppercase letter")
-//     .regex(/[a-z]/, "Password must include at least one lowercase letter")
-//     .regex(/[0-9]/, "Password must include at least one number"),
-// });
-
 const signUpSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  name: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters"),
+  email: z
+    .string()
+    .trim()
+    .email("Enter a valid email address"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must include an uppercase letter")
+    .regex(/[a-z]/, "Password must include a lowercase letter")
+    .regex(/[0-9]/, "Password must include a number"),
 });
 
 type SignInValues = z.infer<typeof signInSchema>;
@@ -120,47 +120,6 @@ export default function Index() {
       setBusy(false);
     }
   }
-
-  // async function handleSignUp(values: SignUpValues) {
-  //   setBusy(true);
-  //   setMessage("");
-  //   setMessageType("");
-
-  //   try {
-  //     const { error, session } = await signUp(
-  //       values.name.trim(),
-  //       values.email.trim(),
-  //       values.password
-  //     );
-
-  //     if (error) {
-  //       setMessageType("error");
-  //       const lower = error.message.toLowerCase();
-  //       if (lower.includes("password")) {
-  //         setMessage(`Weak password: ${error.message}`);
-  //       } else {
-  //         setMessage(error.message);
-  //       }
-  //     } else if (session) {
-  //       setMessageType("success");
-  //       setMessage("Account created successfully!");
-  //     } else {
-  //       setMessageType("success");
-  //       setMessage(
-  //         "Account created! Please check your email to confirm your account, then sign in."
-  //       );
-  //       setIsSignUp(false);
-  //       loginForm.setValue("email", values.email.trim());
-  //     }
-  //   } catch {
-  //     setMessageType("error");
-  //     setMessage(
-  //       "Network error. Please check your internet connection and try again."
-  //     );
-  //   } finally {
-  //     setBusy(false);
-  //   }
-  // }
 
   async function handleSignUp(values: SignUpValues) {
     setBusy(true);
